@@ -62,6 +62,12 @@ pub enum ManifestKind {
         name: String,
         #[serde(default)]
         output: PackageKind,
+        #[serde(default)]
+        lto: bool,
+        #[serde(default)]
+        features: Vec<String>,
+        #[serde(default)]
+        default_features: Vec<String>,
     },
     Workspace {
         members: Vec<String>,
