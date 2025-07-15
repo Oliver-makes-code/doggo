@@ -2,19 +2,13 @@ use std::{collections::HashMap, fs, path::Path};
 use serde::{Deserialize};
 
 #[derive(Debug, Clone, PartialEq, PartialOrd, Deserialize)]
-#[serde(rename_all = "snake_case")]
-pub enum ComplexDependencyKind {
-    Workspace,
-    Path(String),
-    Version(String),
-}
-
-#[derive(Debug, Clone, PartialEq, PartialOrd, Deserialize)]
 pub struct ComplexDependency {
-    #[serde(flatten)]
-    kind: ComplexDependencyKind,
+    path: Option<String>,
+    version: Option<String>,
     #[serde(default)]
-    features: Vec<String>
+    features: Vec<String>,
+    #[serde(default)]
+    workspace: bool
 }
 
 #[derive(Debug, Clone, PartialEq, PartialOrd, Deserialize)]
