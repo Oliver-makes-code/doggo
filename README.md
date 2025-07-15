@@ -4,8 +4,14 @@ A modern, Cargo-like, build system for C, C++, and ASM. Designed to build C/C++,
 
 ## Why a new build system?
 
-I started this project because I wanted to make rust interoperating with C/C++ easier.
-Initially, I will only support Clang, so I don't need to maintain sets of compiler flags and whatnot.
+Doggo's primary goal is to make building C, C++, and ASM as easy as it is to build Rust.
+
+A secondary goal is to decrease the difficulty of integrating Rust libraries into C/C++ codebases.
+
+## What compiler(s)?
+
+Right now, we only support Clang.
+This is to make the burden of maintaining compiler flags smaller, make prototyping faster, and add easier support for cross-compilation, leveraging LLVM's ecosystem.
 
 ## Why the name?
 
@@ -13,4 +19,4 @@ Dog + Cargo = Doggo :3
 
 ## Project status
 
-The project is currently in a prototyping stage.
+The project is currently in the prototyping stage.
