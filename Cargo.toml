@@ -1,0 +1,8 @@
+[workspace]
+resolver = "2"
+members = ["cli", "core"]
+
+[workspace.dependencies]
+serde = { version = "1.0.219", features = ["serde_derive"] }
+toml = "0.9.2"
+doggo-core.path = "./core"

@@ -1,0 +1,3 @@
+[external_library]
+name = "some_rust_project"
+toolchain = "cargo"
