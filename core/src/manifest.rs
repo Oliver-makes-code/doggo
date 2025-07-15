@@ -62,7 +62,6 @@ pub enum ManifestKind {
         name: String,
         #[serde(default)]
         output: PackageKind,
-        header_paths: Option<HeaderPaths>,
     },
     Workspace {
         members: Vec<String>,
