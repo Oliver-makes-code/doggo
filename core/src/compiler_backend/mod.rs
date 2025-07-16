@@ -2,6 +2,9 @@ use std::process::Command;
 
 use which::which;
 
+/// I don't know if this is any better than just keeping a string...
+/// Different compilers will have different level types, but there's some commonality.
+/// For now, I'll leave it as an enum so they have actual meaning behind the values.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Default)]
 pub enum OptLevel {
     #[default]
@@ -34,9 +37,12 @@ impl OptLevel {
 pub struct ExtraCompileOptions {
     pub opt_level: OptLevel,
     pub generate_debug: bool,
+    pub lto: bool,
 }
 
 pub struct ClangCompilerBackend {
+    /// Clang path is cached here so we don't need to locate it every time we
+    /// try to invoke it or generate a compile command.
     compiler_path: String
 }
 
