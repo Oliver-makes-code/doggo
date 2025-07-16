@@ -43,14 +43,14 @@ pub struct ExtraCompileOptions {
 pub struct ClangCompilerBackend {
     /// Clang path is cached here so we don't need to locate it every time we
     /// try to invoke it or generate a compile command.
-    compiler_path: String
+    compiler_path: String,
 }
 
 impl ClangCompilerBackend {
     pub fn new() -> which::Result<Self> {
         return Ok(Self {
             compiler_path: which("clang")?.to_str().unwrap().to_string(),
-        })
+        });
     }
 
     /// If gen_compile_commands is set, the command isn't run, and, instead,
@@ -96,7 +96,7 @@ impl ClangCompilerBackend {
             return Err(std::io::Error::new(
                 std::io::ErrorKind::Other,
                 format!("Clang exited with status {}", status),
-            ))
+            ));
         }
 
         return Ok(None);
