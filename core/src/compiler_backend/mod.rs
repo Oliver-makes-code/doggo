@@ -1,4 +1,4 @@
-use std::process::Command;
+use std::{process::Command};
 
 use which::which;
 
@@ -132,6 +132,10 @@ impl ClangCompilerBackend {
 
         args.extend(["-target".into(), extra_options.target.clone()]);
 
+        if !target_is_msvc(&extra_options.target) {
+            args.push("-fPIC".into());
+        }
+
         if gen_compile_commands {
             let mut out_args = vec![self.compiler_path.clone()];
             out_args.extend(args);
@@ -151,7 +155,7 @@ impl ClangCompilerBackend {
         return Ok(None);
     }
 
-    pub fn link_static_lib(
+    pub fn archive_objects(
         &self,
         object_paths: &[String],
         output_path: &str,
@@ -179,6 +183,53 @@ impl ClangCompilerBackend {
             return Err(std::io::Error::new(
                 std::io::ErrorKind::Other,
                 format!("Archiver exited with status {}", status),
+            ));
+        }
+
+        return Ok(());
+    }
+
+    pub fn link_objects(
+        &self,
+        object_paths: &[String],
+        output_path: &str,
+        lib_paths: &[String],
+        dynamic_libs: &[String],
+        static_libs: &[String],
+        dynamic_library: bool,
+        extra_options: &ExtraCompileOptions,
+    ) -> std::io::Result<()> {
+        let mut args: Vec<String> = vec![];
+
+        args.extend(object_paths.iter().cloned());
+
+        args.extend(lib_paths.iter().map(|it| format!("-L{}", it)));
+        args.extend(dynamic_libs.iter().map(|it| format!("-l{}", it)));
+
+        if !target_is_msvc(&extra_options.target) {
+            args.push(format!("-Wl,--whole-archive"));
+        }
+
+        args.extend(static_libs.iter().map(|it| format!("-l{}", it)));
+
+        if dynamic_library {
+            args.push("-shared".into());
+        }
+
+        args.extend(["-o".into(), output_path.into()]);
+
+        args.extend(["-target".into(), extra_options.target.clone()]);
+
+        if extra_options.lto {
+            args.push("-flto".into());
+        }
+
+        let status = Command::new(&self.compiler_path).args(&args).status()?;
+
+        if !status.success() {
+            return Err(std::io::Error::new(
+                std::io::ErrorKind::Other,
+                format!("Linker exited with status {}", status),
             ));
         }
 
