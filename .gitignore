@@ -1,2 +1,9 @@
 /target
 Cargo.lock
+*.o
+*.d
+*.a
+*.so
+*.dll
+*.lib
+*.obj

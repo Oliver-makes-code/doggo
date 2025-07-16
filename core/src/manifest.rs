@@ -1,21 +1,21 @@
+use serde::Deserialize;
 use std::{collections::HashMap, fs, path::Path};
-use serde::{Deserialize};
 
 #[derive(Debug, Clone, PartialEq, PartialOrd, Deserialize)]
 pub struct ComplexDependency {
-    path: Option<String>,
-    version: Option<String>,
+    pub path: Option<String>,
+    pub version: Option<String>,
     #[serde(default)]
-    features: Vec<String>,
+    pub features: Vec<String>,
     #[serde(default)]
-    workspace: bool
+    pub workspace: bool,
 }
 
 #[derive(Debug, Clone, PartialEq, PartialOrd, Deserialize)]
 #[serde(untagged)]
 pub enum Dependency {
     Simple(String),
-    Complex(ComplexDependency)
+    Complex(ComplexDependency),
 }
 
 #[derive(Debug, Clone, PartialEq, PartialOrd, Deserialize)]
@@ -28,18 +28,18 @@ pub enum ExternalToolchain {
 #[derive(Debug, Clone, PartialEq, PartialOrd, Deserialize, Default)]
 #[serde(rename_all = "snake_case")]
 pub enum PackageKind {
-    #[serde(alias="exe")]
+    #[serde(alias = "exe")]
     #[default]
     Executable,
-    #[serde(alias="staticlib")]
-    #[serde(alias="static")]
+    #[serde(alias = "staticlib")]
+    #[serde(alias = "static")]
     StaticLibrary,
-    #[serde(alias="dynamiclib")]
-    #[serde(alias="dynamic")]
-    #[serde(alias="dylib")]
-    #[serde(alias="so")]
-    #[serde(alias="dll")]
-    DynamicLibrary
+    #[serde(alias = "dynamiclib")]
+    #[serde(alias = "dynamic")]
+    #[serde(alias = "dylib")]
+    #[serde(alias = "so")]
+    #[serde(alias = "dll")]
+    DynamicLibrary,
 }
 
 #[derive(Debug, Clone, PartialEq, PartialOrd, Deserialize)]
@@ -50,27 +50,37 @@ pub enum HeaderPaths {
 }
 
 #[derive(Debug, Clone, PartialEq, PartialOrd, Deserialize)]
+pub struct PackageManifest {
+    pub name: String,
+    #[serde(default)]
+    pub output: PackageKind,
+    #[serde(default)]
+    pub lto: bool,
+    #[serde(default)]
+    pub features: Vec<String>,
+    #[serde(default)]
+    pub default_features: Vec<String>,
+}
+
+#[derive(Debug, Clone, PartialEq, PartialOrd, Deserialize)]
+pub struct WorkspaceManifest {
+    #[serde(default)]
+    pub members: Vec<String>,
+}
+
+#[derive(Debug, Clone, PartialEq, PartialOrd, Deserialize)]
+pub struct ExternalLibraryManifest {
+    pub name: String,
+    pub toolchain: ExternalToolchain,
+    pub header_paths: Option<HeaderPaths>,
+}
+
+#[derive(Debug, Clone, PartialEq, PartialOrd, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum ManifestKind {
-    Package {
-        name: String,
-        #[serde(default)]
-        output: PackageKind,
-        #[serde(default)]
-        lto: bool,
-        #[serde(default)]
-        features: Vec<String>,
-        #[serde(default)]
-        default_features: Vec<String>,
-    },
-    Workspace {
-        members: Vec<String>,
-    },
-    ExternalLibrary {
-        name: String,
-        toolchain: ExternalToolchain,
-        header_paths: Option<HeaderPaths>,
-    }
+    Package(PackageManifest),
+    Workspace(WorkspaceManifest),
+    ExternalLibrary(ExternalLibraryManifest),
 }
 
 #[derive(Debug, Clone, PartialEq, Deserialize)]
