@@ -43,9 +43,9 @@ pub struct ExtraCompileOptions {
     pub target: String,
 }
 
+/// Compiler paths are cached here so we don't need to locate it every time we
+/// try to invoke it or generate a compile command.
 pub struct ClangCompilerBackend {
-    /// Clang path is cached here so we don't need to locate it every time we
-    /// try to invoke it or generate a compile command.
     compiler_path: String,
     lib_path: String,
     ar_path: String,
