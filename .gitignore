@@ -7,3 +7,4 @@ Cargo.lock
 *.dll
 *.lib
 *.obj
+test/

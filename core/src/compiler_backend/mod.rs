@@ -53,6 +53,46 @@ impl ClangCompilerBackend {
         });
     }
 
+    pub fn get_object_suffix(&self) -> &str {
+        return if cfg!(target_os = "windows") {
+            ".obj"
+        } else {
+            ".o"
+        };
+    }
+
+    pub fn get_static_suffix(&self) -> &str {
+        return if cfg!(target_os = "windows") {
+            ".lib"
+        } else {
+            ".a"
+        };
+    }
+
+    pub fn get_dynamic_suffix(&self) -> &str {
+        return if cfg!(target_os = "windows") {
+            ".dll"
+        } else {
+            ".so"
+        };
+    }
+
+    pub fn get_library_prefix(&self) -> &str {
+        return if cfg!(target_os = "windows") {
+            ""
+        } else {
+            "lib"
+        };
+    }
+
+    pub fn get_executable_suffix(&self) -> &str {
+        return if cfg!(target_os = "windows") {
+            ".exe"
+        } else {
+            ""
+        };
+    }
+
     /// If gen_compile_commands is set, the command isn't run, and, instead,
     /// it returns a list of the compile commands. This is used to generate
     /// a compile_commands.json file.
@@ -100,5 +140,38 @@ impl ClangCompilerBackend {
         }
 
         return Ok(None);
+    }
+    
+    pub fn link_static_lib(
+        &self,
+        object_paths: &[String],
+        output_path: &str,
+    ) -> std::io::Result<()> {
+        let mut args: Vec<String> = vec![];
+
+        if cfg!(target_os = "windows") {
+            args.push(format!("/OUT:{}", output_path));
+        } else {
+            args.extend(["rcs".into(), output_path.into()]);
+        }
+
+        args.extend(object_paths.iter().cloned());
+
+        let archiver = if cfg!(target_os = "windows") {
+            "llvm-lib"
+        } else {
+            "llvm-ar"
+        };
+
+        let status = Command::new(archiver).args(&args).status()?;
+
+        if !status.success() {
+            return Err(std::io::Error::new(
+                std::io::ErrorKind::Other,
+                format!("Archiver exited with status {}", status),
+            ));
+        }
+        
+        return Ok(())
     }
 }
