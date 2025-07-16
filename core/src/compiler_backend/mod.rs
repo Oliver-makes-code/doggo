@@ -2,6 +2,8 @@ use std::process::Command;
 
 use which::which;
 
+use crate::{target_is_msvc, target_is_windows};
+
 /// I don't know if this is any better than just keeping a string...
 /// Different compilers will have different level types, but there's some commonality.
 /// For now, I'll leave it as an enum so they have actual meaning behind the values.
@@ -38,55 +40,60 @@ pub struct ExtraCompileOptions {
     pub opt_level: OptLevel,
     pub generate_debug: bool,
     pub lto: bool,
+    pub target: String,
 }
 
 pub struct ClangCompilerBackend {
     /// Clang path is cached here so we don't need to locate it every time we
     /// try to invoke it or generate a compile command.
     compiler_path: String,
+    lib_path: String,
+    ar_path: String,
 }
 
 impl ClangCompilerBackend {
     pub fn new() -> which::Result<Self> {
         return Ok(Self {
             compiler_path: which("clang")?.to_str().unwrap().to_string(),
+            lib_path: which("llvm-lib")?.to_str().unwrap().to_string(),
+            ar_path: which("llvm-ar")?.to_str().unwrap().to_string(),
         });
     }
 
-    pub fn get_object_suffix(&self) -> &str {
-        return if cfg!(target_os = "windows") {
+    pub fn get_object_suffix(&self, extra_options: &ExtraCompileOptions) -> &str {
+        return if target_is_msvc(&extra_options.target) {
             ".obj"
         } else {
             ".o"
         };
     }
 
-    pub fn get_static_suffix(&self) -> &str {
-        return if cfg!(target_os = "windows") {
+    pub fn get_static_suffix(&self, extra_options: &ExtraCompileOptions) -> &str {
+        return if target_is_msvc(&extra_options.target) {
             ".lib"
         } else {
             ".a"
         };
     }
 
-    pub fn get_dynamic_suffix(&self) -> &str {
-        return if cfg!(target_os = "windows") {
+    pub fn get_dynamic_suffix(&self, extra_options: &ExtraCompileOptions) -> &str {
+        return if target_is_windows(&extra_options.target) {
             ".dll"
         } else {
             ".so"
         };
     }
 
-    pub fn get_library_prefix(&self) -> &str {
-        return if cfg!(target_os = "windows") {
+    pub fn get_library_prefix(&self, extra_options: &ExtraCompileOptions) -> &str {
+        return if target_is_msvc(&extra_options.target) {
             ""
         } else {
             "lib"
         };
     }
 
-    pub fn get_executable_suffix(&self) -> &str {
-        return if cfg!(target_os = "windows") {
+    pub fn get_executable_suffix(&self, extra_options: &ExtraCompileOptions) -> &str {
+        return if target_is_windows(&extra_options.target) {
             ".exe"
         } else {
             ""
@@ -123,6 +130,8 @@ impl ClangCompilerBackend {
 
         args.push("-MD".into());
 
+        args.extend(["-target".into(), extra_options.target.clone()]);
+
         if gen_compile_commands {
             let mut out_args = vec![self.compiler_path.clone()];
             out_args.extend(args);
@@ -141,15 +150,16 @@ impl ClangCompilerBackend {
 
         return Ok(None);
     }
-    
+
     pub fn link_static_lib(
         &self,
         object_paths: &[String],
         output_path: &str,
+        extra_options: &ExtraCompileOptions,
     ) -> std::io::Result<()> {
         let mut args: Vec<String> = vec![];
 
-        if cfg!(target_os = "windows") {
+        if target_is_msvc(&extra_options.target) {
             args.push(format!("/OUT:{}", output_path));
         } else {
             args.extend(["rcs".into(), output_path.into()]);
@@ -157,10 +167,10 @@ impl ClangCompilerBackend {
 
         args.extend(object_paths.iter().cloned());
 
-        let archiver = if cfg!(target_os = "windows") {
-            "llvm-lib"
+        let archiver = if target_is_msvc(&extra_options.target) {
+            &self.lib_path
         } else {
-            "llvm-ar"
+            &self.ar_path
         };
 
         let status = Command::new(archiver).args(&args).status()?;
@@ -171,7 +181,7 @@ impl ClangCompilerBackend {
                 format!("Archiver exited with status {}", status),
             ));
         }
-        
-        return Ok(())
+
+        return Ok(());
     }
 }
