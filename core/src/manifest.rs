@@ -1,12 +1,14 @@
 use serde::Deserialize;
 use std::{collections::HashMap, fs, path::Path};
 
+use crate::interner::StrReference;
+
 #[derive(Debug, Clone, PartialEq, PartialOrd, Deserialize)]
 pub struct ComplexDependency {
-    pub path: Option<String>,
-    pub version: Option<String>,
+    pub path: Option<StrReference>,
+    pub version: Option<StrReference>,
     #[serde(default)]
-    pub features: Vec<String>,
+    pub features: Vec<StrReference>,
     #[serde(default)]
     pub workspace: bool,
 }
@@ -14,7 +16,7 @@ pub struct ComplexDependency {
 #[derive(Debug, Clone, PartialEq, PartialOrd, Deserialize)]
 #[serde(untagged)]
 pub enum Dependency {
-    Simple(String),
+    Simple(StrReference),
     Complex(ComplexDependency),
 }
 
@@ -45,34 +47,27 @@ pub enum PackageKind {
 #[derive(Debug, Clone, PartialEq, PartialOrd, Deserialize)]
 #[serde(untagged)]
 pub enum HeaderPaths {
-    Single(String),
-    Multi(Vec<String>),
+    Single(StrReference),
+    Multi(Vec<StrReference>),
 }
 
 #[derive(Debug, Clone, PartialEq, PartialOrd, Deserialize)]
 pub struct PackageManifest {
-    pub name: String,
+    pub name: StrReference,
     #[serde(default)]
     pub output: PackageKind,
     #[serde(default)]
     pub lto: bool,
     #[serde(default)]
-    pub features: Vec<String>,
+    pub features: Vec<StrReference>,
     #[serde(default)]
-    pub default_features: Vec<String>,
+    pub default_features: Vec<StrReference>,
 }
 
 #[derive(Debug, Clone, PartialEq, PartialOrd, Deserialize)]
 pub struct WorkspaceManifest {
     #[serde(default)]
-    pub members: Vec<String>,
-}
-
-#[derive(Debug, Clone, PartialEq, PartialOrd, Deserialize)]
-pub struct ExternalLibraryManifest {
-    pub name: String,
-    pub toolchain: ExternalToolchain,
-    pub header_paths: Option<HeaderPaths>,
+    pub members: Vec<StrReference>,
 }
 
 #[derive(Debug, Clone, PartialEq, PartialOrd, Deserialize)]
@@ -80,7 +75,6 @@ pub struct ExternalLibraryManifest {
 pub enum ManifestKind {
     Package(PackageManifest),
     Workspace(WorkspaceManifest),
-    ExternalLibrary(ExternalLibraryManifest),
 }
 
 #[derive(Debug, Clone, PartialEq, Deserialize)]
@@ -88,7 +82,7 @@ pub struct Manifest {
     #[serde(flatten)]
     pub kind: ManifestKind,
     #[serde(default)]
-    pub dependencies: HashMap<String, Dependency>,
+    pub dependencies: HashMap<StrReference, Dependency>,
 }
 
 impl Manifest {

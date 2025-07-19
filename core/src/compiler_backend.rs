@@ -1,8 +1,8 @@
-use std::{process::Command};
+use std::process::Command;
 
 use which::which;
 
-use crate::{target_is_msvc, target_is_windows};
+use crate::{DEFAULT_TARGET, target_is_msvc, target_is_windows};
 
 /// I don't know if this is any better than just keeping a string...
 /// Different compilers will have different level types, but there's some commonality.
@@ -35,12 +35,22 @@ impl OptLevel {
 
 /// For future-proofing, user-changable compiler-specific flags should be added to this struct,
 /// so if we add more compiler backends in the future we'll have an easier time converting.
-#[derive(Default)]
 pub struct ExtraCompileOptions {
     pub opt_level: OptLevel,
     pub generate_debug: bool,
     pub lto: bool,
     pub target: String,
+}
+
+impl Default for ExtraCompileOptions {
+    fn default() -> Self {
+        return Self {
+            opt_level: OptLevel::default(),
+            generate_debug: true,
+            lto: false,
+            target: DEFAULT_TARGET.into(),
+        };
+    }
 }
 
 /// Compiler paths are cached here so we don't need to locate it every time we
