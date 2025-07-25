@@ -1,49 +1,45 @@
-use std::path::PathBuf;
+use std::error::Error;
 
 use crate::{
-    interner::StrReference,
-    manifest::{Dependency, PackageManifest, WorkspaceManifest},
+    interner::{StrReference, StringPool},
+    manifest::{Dependency, Manifest, ManifestKind, PackageKind},
 };
-
-pub struct DependencyPartial {
-    pub features: Box<[StrReference]>,
-    pub name: StrReference,
-    pub path: Option<StrReference>,
-    pub version: Option<StrReference>,
-    pub workspace: bool,
-}
-
-impl DependencyPartial {
-    pub fn from(dependency: Dependency, name: StrReference) -> Self {
-        return match dependency {
-            Dependency::Simple(version) => Self {
-                features: Box::new([]),
-                name,
-                version: Some(version),
-                path: None,
-                workspace: false,
-            },
-
-            Dependency::Complex(dependency) => Self {
-                features: dependency.features.into_boxed_slice(),
-                name,
-                path: dependency.path,
-                version: dependency.version,
-                workspace: dependency.workspace,
-            },
-        };
-    }
-}
 
 pub struct Package {
     pub name: StrReference,
-    pub path: PathBuf,
-    pub manifest: PackageManifest,
-    pub dependencies: Box<[DependencyPartial]>,
+    pub path: StrReference,
+    pub dependencies: im::HashMap<StrReference, Dependency>,
+    pub output: PackageKind,
+    pub lto: bool,
 }
 
 pub struct Workspace {
     pub members: Box<[Package]>,
-    pub manifest: WorkspaceManifest,
-    pub dependencies: Box<[DependencyPartial]>,
+    pub path: StrReference,
+    pub dependencies: im::HashMap<StrReference, Dependency>,
+}
+
+impl Package {
+    pub fn load(path: &str) -> Result<Option<Self>, Box<dyn Error>> {
+        let manifest = Manifest::load(path)?;
+
+        return Self::from_manifest(StringPool::global().acquire(path.into())?, manifest);
+    }
+
+    fn from_manifest(path: StrReference, manifest: Manifest) -> Result<Option<Self>, Box<dyn Error>> {
+        let ManifestKind::Package(package) = manifest.kind else {
+            return Ok(None);
+        };
+
+        return Ok(Some(Self {
+            name: package.name,
+            path,
+            dependencies: manifest.dependencies.into(),
+            output: package.output,
+            lto: package.lto,
+        }));
+    }
+}
+
+impl Workspace {
 }

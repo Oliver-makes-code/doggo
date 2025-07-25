@@ -1,30 +1,13 @@
 use serde::Deserialize;
-use std::{collections::HashMap, fs, path::Path};
+use std::{collections::HashMap, error::Error, fs, path::Path};
 
 use crate::interner::StrReference;
 
 #[derive(Debug, Clone, PartialEq, PartialOrd, Deserialize)]
-pub struct ComplexDependency {
+pub struct Dependency {
     pub path: Option<StrReference>,
-    pub version: Option<StrReference>,
-    #[serde(default)]
-    pub features: Vec<StrReference>,
     #[serde(default)]
     pub workspace: bool,
-}
-
-#[derive(Debug, Clone, PartialEq, PartialOrd, Deserialize)]
-#[serde(untagged)]
-pub enum Dependency {
-    Simple(StrReference),
-    Complex(ComplexDependency),
-}
-
-#[derive(Debug, Clone, PartialEq, PartialOrd, Deserialize)]
-#[serde(rename_all = "snake_case")]
-pub enum ExternalToolchain {
-    Cargo,
-    Cmake,
 }
 
 #[derive(Debug, Clone, PartialEq, PartialOrd, Deserialize, Default)]
@@ -58,10 +41,6 @@ pub struct PackageManifest {
     pub output: PackageKind,
     #[serde(default)]
     pub lto: bool,
-    #[serde(default)]
-    pub features: Vec<StrReference>,
-    #[serde(default)]
-    pub default_features: Vec<StrReference>,
 }
 
 #[derive(Debug, Clone, PartialEq, PartialOrd, Deserialize)]
@@ -88,9 +67,9 @@ pub struct Manifest {
 impl Manifest {
     const TOML_NAME: &'static str = "Doggo.toml";
 
-    pub fn load(path: &str) -> Manifest {
+    pub fn load(path: &str) -> Result<Manifest, Box<dyn Error>> {
         let full_path = Path::new(path).join(Self::TOML_NAME);
-        let content = fs::read_to_string(full_path).unwrap();
-        return toml::from_str(&content).unwrap();
+        let content = fs::read_to_string(full_path)?;
+        return Ok(toml::from_str(&content)?);
     }
 }
