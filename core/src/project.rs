@@ -1,6 +1,4 @@
-use std::{
-    collections::HashMap, ffi::OsStr, fs::DirEntry, io, ops::Deref, path::{Path, PathBuf}, thread::panicking
-};
+use std::{collections::HashMap, ffi::OsStr, fs::DirEntry, io, ops::Deref, path::PathBuf};
 
 use crate::{
     interner::StrReference,
