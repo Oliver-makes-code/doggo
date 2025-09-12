@@ -64,7 +64,11 @@ fn main() {
             println!("Build {:?}", release);
         }
 
-        Commands::Run { args, release, project } => {
+        Commands::Run {
+            args,
+            release,
+            project,
+        } => {
             let workspace = Workspace::load("./".into(), project).unwrap().unwrap();
 
             let compiler = ClangCompilerBackend::new().unwrap();
