@@ -4,7 +4,10 @@ members = ["cli", "core"]
 
 [workspace.dependencies]
 serde = { version = "1.0.219", features = ["serde_derive"] }
-toml = "0.9.2"
+toml = "0.9.5"
 doggo-core.path = "./core"
 which = "8.0.0"
 im = "15.1.0"
+thiserror = "2.0.16"
+clap = "4.5.47"
+clap_derive = "4.5.47"

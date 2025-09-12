@@ -8,6 +8,13 @@ Doggo's primary goal is to make building C, C++, and ASM as easy as it is to bui
 
 A secondary goal is to decrease the difficulty of integrating Rust libraries into C/C++ codebases.
 
+## What are your non-goals?
+
+Speed and extensability are explicit non-goals.
+Doggo aims to provide a sensible set of defaults, but if you need more complicated build logic, use another build system.
+
+Doggo also won't generate makefiles or Ninja files, and instead will dispatch build commands itself.
+
 ## What compiler(s)?
 
 Right now, we only support Clang.
