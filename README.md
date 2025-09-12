@@ -26,4 +26,4 @@ Dog + Cargo = Doggo :3
 
 ## Project status
 
-The project is currently in the prototyping stage.
+The project is currently in the **WIP** stage.
