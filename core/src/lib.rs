@@ -1,10 +1,6 @@
 #![feature(decl_macro, str_as_str)]
 
-use std::{
-    fs::DirEntry,
-    io,
-    path::{Path, PathBuf},
-};
+use std::{fs::DirEntry, io, path::Path};
 
 pub mod compiler_backend;
 pub mod interner;
