@@ -15,6 +15,8 @@ Doggo aims to provide a sensible set of defaults, but if you need more complicat
 
 Doggo also won't generate makefiles or Ninja files, and instead will dispatch build commands itself.
 
+Doggo isn't intended to be a replacement for CMake, Ninja, MSVC, XCode, etc. It's intended for new projects that don't need complicated build logic.
+
 ## What compiler(s)?
 
 Right now, we only support Clang.
