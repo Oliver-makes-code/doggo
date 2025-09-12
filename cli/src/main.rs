@@ -1,3 +1,5 @@
+use std::path::PathBuf;
+
 use clap::Parser;
 use doggo_core::{compiler_backend::ClangCompilerBackend, project::Workspace};
 
@@ -5,11 +7,11 @@ use doggo_core::{compiler_backend::ClangCompilerBackend, project::Workspace};
 #[command(name = "Doggo")]
 #[command(about = "Bulding C/C++, without the fluff!", long_about = None)]
 struct Cli {
-    #[command(subcommand)]
-    command: Commands,
-
     #[arg(short, long, global = true)]
     project: Option<String>,
+
+    #[command(subcommand)]
+    command: Commands,
 }
 
 #[derive(clap_derive::Subcommand)]
@@ -34,6 +36,22 @@ enum Commands {
 
     /// Cleans up build directory.
     Clean,
+
+    Init {
+        #[arg(long, global = true)]
+        path: Option<PathBuf>,
+
+        #[command(subcommand)]
+        subcommand: Option<ProjectInit>,
+    },
+}
+
+#[derive(clap_derive::Subcommand, Default, Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
+enum ProjectInit {
+    Dylib,
+    Staticlib,
+    #[default]
+    Binary,
 }
 
 fn main() {
@@ -45,11 +63,11 @@ fn main() {
 
     match &cli.command {
         Commands::Build { release } => {
-            println!("Build");
+            println!("Build {:?}", release);
         }
 
         Commands::Run { args, release } => {
-            println!("Run");
+            println!("Run {:?} {:?}", args, release);
         }
 
         Commands::GenCompileCommands => {
@@ -58,6 +76,12 @@ fn main() {
 
         Commands::Clean => {
             println!("Clean");
+        }
+
+        Commands::Init { subcommand, path } => {
+            let subcommand = subcommand.unwrap_or_default();
+
+            println!("Init {:?} {:?}", subcommand, path);
         }
     }
 }
