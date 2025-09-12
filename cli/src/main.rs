@@ -7,9 +7,6 @@ use doggo_core::{compiler_backend::ClangCompilerBackend, project::Workspace};
 #[command(name = "Doggo")]
 #[command(about = "Bulding C/C++, without the fluff!", long_about = None)]
 struct Cli {
-    #[arg(short, long, global = true)]
-    project: Option<String>,
-
     #[command(subcommand)]
     command: Commands,
 }
@@ -20,12 +17,16 @@ enum Commands {
     Build {
         #[arg(short, long)]
         release: bool,
+        #[arg(short, long)]
+        project: Option<String>,
     },
 
     /// Runs the project.
     Run {
         #[arg(short, long)]
         release: bool,
+        #[arg(short, long)]
+        project: Option<String>,
         #[arg(last = true)]
         args: Vec<String>,
     },
@@ -34,11 +35,8 @@ enum Commands {
     #[command(name = "idegen")]
     GenCompileCommands,
 
-    /// Cleans up build directory.
-    Clean,
-
     Init {
-        #[arg(long, global = true)]
+        #[arg(long, short, global = true)]
         path: Option<PathBuf>,
 
         #[command(subcommand)]
@@ -57,25 +55,29 @@ enum ProjectInit {
 fn main() {
     let cli = Cli::parse();
 
-    let workspace = Workspace::load("./".into(), cli.project).unwrap().unwrap();
+    match cli.command {
+        Commands::Build { release, project } => {
+            let workspace = Workspace::load("./".into(), project).unwrap().unwrap();
 
-    let compiler = ClangCompilerBackend::new().unwrap();
+            let compiler = ClangCompilerBackend::new().unwrap();
 
-    match &cli.command {
-        Commands::Build { release } => {
             println!("Build {:?}", release);
         }
 
-        Commands::Run { args, release } => {
+        Commands::Run { args, release, project } => {
+            let workspace = Workspace::load("./".into(), project).unwrap().unwrap();
+
+            let compiler = ClangCompilerBackend::new().unwrap();
+
             println!("Run {:?} {:?}", args, release);
         }
 
         Commands::GenCompileCommands => {
-            println!("Gen");
-        }
+            let workspace = Workspace::load("./".into(), None).unwrap().unwrap();
 
-        Commands::Clean => {
-            println!("Clean");
+            let compiler = ClangCompilerBackend::new().unwrap();
+
+            println!("Gen");
         }
 
         Commands::Init { subcommand, path } => {
