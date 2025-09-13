@@ -97,7 +97,7 @@ fn build_package(
 
             return Ok(());
         },
-        &["c", "cpp", "cxx", "c++", "cc", "s"],
+        &["c", "cpp", "cxx", "c++", "cc", "s", "asm"],
     )?;
 
     return Ok(());
