@@ -1,7 +1,11 @@
-use std::path::PathBuf;
+use std::{fs, path::PathBuf, process::exit};
 
 use clap::Parser;
-use doggo_core::{compiler_backend::ClangCompilerBackend, project::Workspace};
+use doggo_core::{
+    compiler_backend::{ClangCompilerBackend, ExtraCompileOptions, OptLevel},
+    get_default_target,
+    project::{Package, Workspace},
+};
 
 #[derive(clap_derive::Parser)]
 #[command(name = "Doggo")]
@@ -52,16 +56,90 @@ enum ProjectInit {
     Binary,
 }
 
-fn main() {
-    let cli = Cli::parse();
+fn unwrap_fancy<T>(res: Result<T, Box<dyn std::error::Error>>) -> T {
+    return match res {
+        Err(e) => {
+            eprintln!("{}", e);
+            exit(0);
+        }
+        Ok(t) => t,
+    };
+}
 
+fn compiled_path(package_name: &str) -> PathBuf {
+    return PathBuf::new().join(".doggo").join(package_name);
+}
+
+fn build_package(
+    workspace: &Workspace,
+    package: &Package,
+    compiler: &ClangCompilerBackend,
+    extra_options: &ExtraCompileOptions,
+) -> Result<(), Box<dyn std::error::Error>> {
+    let compiled = compiled_path(&package.name.get());
+
+    fs::create_dir_all(&compiled)?;
+
+    package.visit(
+        |path| {
+            compiler.compile_object(
+                &package.resolve_source(path),
+                compiled
+                    .join(path)
+                    .with_extension(compiler.get_object_suffix(extra_options))
+                    .to_str()
+                    .unwrap(),
+                &[],
+                &[],
+                extra_options,
+                false,
+            )?;
+
+            return Ok(());
+        },
+        &["c", "cpp", "cxx", "c++", "cc", "s"],
+    )?;
+
+    return Ok(());
+}
+
+fn build(
+    workspace: &Workspace,
+    compiler: &ClangCompilerBackend,
+    release: bool,
+) -> Result<(), Box<dyn std::error::Error>> {
+    let Some(current_member) = workspace.current_member else {
+        return Ok(());
+    };
+
+    let current_member = &workspace.members[current_member];
+
+    let extra_options = ExtraCompileOptions {
+        opt_level: if release {
+            OptLevel::Three
+        } else {
+            OptLevel::Zero
+        },
+        generate_debug: true,
+        lto: current_member.lto,
+        target: get_default_target().to_string(),
+    };
+    
+    build_package(workspace, &current_member, compiler, &extra_options)?;
+
+    return Ok(());
+}
+
+fn run(cli: Cli) -> Result<(), Box<dyn std::error::Error>> {
     match cli.command {
         Commands::Build { release, project } => {
-            let workspace = Workspace::load("./".into(), project).unwrap().unwrap();
+            let workspace = Workspace::load("./".into(), project)?.unwrap();
 
-            let compiler = ClangCompilerBackend::new().unwrap();
+            let compiler = ClangCompilerBackend::new()?;
 
             println!("Build {:?}", release);
+
+            build(&workspace, &compiler, release)?;
         }
 
         Commands::Run {
@@ -69,17 +147,17 @@ fn main() {
             release,
             project,
         } => {
-            let workspace = Workspace::load("./".into(), project).unwrap().unwrap();
+            let workspace = Workspace::load("./".into(), project)?.unwrap();
 
-            let compiler = ClangCompilerBackend::new().unwrap();
+            let compiler = ClangCompilerBackend::new()?;
 
             println!("Run {:?} {:?}", args, release);
         }
 
         Commands::GenCompileCommands => {
-            let workspace = Workspace::load("./".into(), None).unwrap().unwrap();
+            let workspace = Workspace::load("./".into(), None)?.unwrap();
 
-            let compiler = ClangCompilerBackend::new().unwrap();
+            let compiler = ClangCompilerBackend::new()?;
 
             println!("Gen");
         }
@@ -90,4 +168,12 @@ fn main() {
             println!("Init {:?} {:?}", subcommand, path);
         }
     }
+
+    return Ok(());
+}
+
+fn main() {
+    let cli = Cli::parse();
+
+    unwrap_fancy(run(cli));
 }

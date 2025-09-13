@@ -1,4 +1,5 @@
-use std::{collections::HashMap, ffi::OsStr, fs::DirEntry, io, ops::Deref, path::PathBuf};
+use std::{collections::HashMap, ffi::OsStr, io, ops::Deref, path::PathBuf};
+
 
 use crate::{
     interner::StrReference,
@@ -37,6 +38,8 @@ pub enum WorkspaceError {
     PackageNotInWorkspace(PathBuf, PathBuf),
     #[error("Cannot find member {0} in workspace ({1}).")]
     CannotFindMember(String, PathBuf),
+    #[error("Dependency named {0} in workspace ({1}) is invalid.")]
+    InvalidDependency(String, PathBuf),
 }
 
 impl Package {
@@ -62,24 +65,24 @@ impl Package {
         }));
     }
 
-    pub fn visit<F: FnMut(PathBuf) -> io::Result<()> + Copy>(
+    pub fn resolve_source(&self, name: &str) -> String {
+        return self.path.join("src").join(name).to_str().unwrap().to_string();
+    }
+
+    pub fn visit<F: FnMut(&str) -> io::Result<()> + Copy>(
         &self,
         mut consumer: F,
         exts: &[&str],
     ) -> io::Result<()> {
-        return walk_dir(&self.path, move |dir: &DirEntry| {
-            let path = &dir.path();
-
-            if !path.is_file() {
-                return Ok(());
-            }
+        return walk_dir(&self.path.join("src"), move |file: &str| {
+            let path: PathBuf = file.into();
 
             let Some(ext) = path.extension().and_then(OsStr::to_str) else {
                 return Ok(());
             };
 
-            if exts.contains(&ext) {
-                consumer(path.to_path_buf())?;
+            if exts.contains(&ext.to_lowercase().deref()) {
+                consumer(file)?;
             }
 
             return Ok(());
@@ -157,6 +160,15 @@ impl Workspace {
     fn find_first_package(mut path: PathBuf) -> Result<Option<Self>, WorkspaceError> {
         loop {
             if let Some(package) = Package::load(&path)? {
+                for dependency in &package.dependencies {
+                    if dependency.1.workspace {
+                        return Err(WorkspaceError::InvalidDependency(
+                            dependency.0.get().to_string(),
+                            package.path,
+                        ));
+                    }
+                }
+
                 return Ok(Some(Self {
                     path: path.canonicalize()?,
                     dependencies: package.dependencies.clone(),
@@ -189,6 +201,15 @@ impl Workspace {
     ) -> Result<Option<Self>, WorkspaceError> {
         if let Some(mut workspace) = Self::find_first_workspace(path.clone())? {
             let mut member = None;
+
+            for dependency in &workspace.dependencies {
+                if dependency.1.workspace {
+                    return Err(WorkspaceError::InvalidDependency(
+                        dependency.0.get().to_string(),
+                        workspace.path,
+                    ));
+                }
+            }
 
             if let Some(selected_project) = selected_project {
                 for (index, package) in workspace.members.iter().enumerate() {

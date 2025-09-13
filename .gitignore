@@ -8,3 +8,4 @@ Cargo.lock
 *.lib
 *.obj
 test/
+.doggo/

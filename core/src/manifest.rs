@@ -10,6 +10,7 @@ use crate::interner::StrReference;
 #[derive(Debug, Clone, PartialEq, PartialOrd, Deserialize)]
 pub struct Dependency {
     pub path: Option<StrReference>,
+    // pub vcpkg: Option<StrReference>,
     #[serde(default)]
     pub workspace: bool,
 }

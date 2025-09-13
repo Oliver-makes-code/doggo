@@ -72,25 +72,25 @@ impl ClangCompilerBackend {
 
     pub fn get_object_suffix(&self, extra_options: &ExtraCompileOptions) -> &str {
         return if target_is_msvc(&extra_options.target) {
-            ".obj"
+            "obj"
         } else {
-            ".o"
+            "o"
         };
     }
 
     pub fn get_static_suffix(&self, extra_options: &ExtraCompileOptions) -> &str {
         return if target_is_msvc(&extra_options.target) {
-            ".lib"
+            "lib"
         } else {
-            ".a"
+            "a"
         };
     }
 
     pub fn get_dynamic_suffix(&self, extra_options: &ExtraCompileOptions) -> &str {
         return if target_is_windows(&extra_options.target) {
-            ".dll"
+            "dll"
         } else {
-            ".so"
+            "so"
         };
     }
 
@@ -104,7 +104,7 @@ impl ClangCompilerBackend {
 
     pub fn get_executable_suffix(&self, extra_options: &ExtraCompileOptions) -> &str {
         return if target_is_windows(&extra_options.target) {
-            ".exe"
+            "exe"
         } else {
             ""
         };

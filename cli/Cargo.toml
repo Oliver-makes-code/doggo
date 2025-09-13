@@ -11,3 +11,4 @@ path = "src/main.rs"
 clap.workspace = true
 clap_derive.workspace = true
 doggo-core.workspace = true
+thiserror.workspace = true

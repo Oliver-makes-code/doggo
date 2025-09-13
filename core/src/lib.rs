@@ -1,6 +1,6 @@
 #![feature(decl_macro, str_as_str)]
 
-use std::{fs::DirEntry, io, path::Path};
+use std::{io, path::Path};
 
 pub mod compiler_backend;
 pub mod interner;
@@ -17,7 +17,7 @@ pub fn target_is_windows(target: &str) -> bool {
     return target.contains("windows");
 }
 
-const fn get_default_target() -> &'static str {
+pub const fn get_default_target() -> &'static str {
     #[cfg(all(target_os = "linux", target_arch = "x86_64"))]
     return "x86_64-pc-linux-gnu";
 
@@ -42,20 +42,24 @@ const fn get_default_target() -> &'static str {
 
 pub const DEFAULT_TARGET: &'static str = get_default_target();
 
-pub fn walk_dir<F: FnMut(&DirEntry) -> io::Result<()> + Copy>(
+pub fn walk_dir<F: FnMut(&str) -> io::Result<()> + Copy>(
     path: &Path,
     mut consumer: F,
 ) -> io::Result<()> {
     let read = path.read_dir()?;
 
+    let base_path = path.to_str().unwrap().to_string();
+
     for entry in read {
         let entry = entry?;
 
-        consumer(&entry)?;
+        let path = entry.path().to_str().unwrap().to_string();
 
         let entry_path = entry.path();
         if entry_path.is_dir() {
             walk_dir(&entry_path, consumer)?;
+        } else if entry_path.is_file() {
+            consumer(&path[base_path.len()+1..])?;
         }
     }
 
