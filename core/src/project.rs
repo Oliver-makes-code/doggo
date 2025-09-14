@@ -1,6 +1,5 @@
 use std::{collections::HashMap, ffi::OsStr, io, ops::Deref, path::PathBuf};
 
-
 use crate::{
     interner::StrReference,
     manifest::{Dependency, Manifest, ManifestError, ManifestKind, PackageKind, WorkspaceManifest},
@@ -66,15 +65,21 @@ impl Package {
     }
 
     pub fn resolve_source(&self, name: &str) -> String {
-        return self.path.join("src").join(name).to_str().unwrap().to_string();
+        return self
+            .path
+            .join("src")
+            .join(name)
+            .to_str()
+            .unwrap()
+            .to_string();
     }
 
-    pub fn visit<F: FnMut(&str) -> io::Result<()> + Copy>(
+    pub fn visit<F: FnMut(&str) -> io::Result<()>>(
         &self,
         mut consumer: F,
         exts: &[&str],
     ) -> io::Result<()> {
-        return walk_dir(&self.path.join("src"), move |file: &str| {
+        return walk_dir(&self.path.join("src"), &mut |file: &str| {
             let path: PathBuf = file.into();
 
             let Some(ext) = path.extension().and_then(OsStr::to_str) else {

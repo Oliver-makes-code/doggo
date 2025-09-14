@@ -1,6 +1,6 @@
-#![feature(decl_macro, str_as_str)]
+#![feature(decl_macro, str_as_str, fn_traits)]
 
-use std::{io, path::Path};
+use std::{fs, io, path::Path, time::SystemTime};
 
 pub mod compiler_backend;
 pub mod interner;
@@ -42,10 +42,7 @@ pub const fn get_default_target() -> &'static str {
 
 pub const DEFAULT_TARGET: &'static str = get_default_target();
 
-pub fn walk_dir<F: FnMut(&str) -> io::Result<()> + Copy>(
-    path: &Path,
-    mut consumer: F,
-) -> io::Result<()> {
+pub fn walk_dir<F: FnMut(&str) -> io::Result<()>>(path: &Path, consumer: &mut F) -> io::Result<()> {
     let read = path.read_dir()?;
 
     let base_path = path.to_str().unwrap().to_string();
@@ -59,9 +56,53 @@ pub fn walk_dir<F: FnMut(&str) -> io::Result<()> + Copy>(
         if entry_path.is_dir() {
             walk_dir(&entry_path, consumer)?;
         } else if entry_path.is_file() {
-            consumer(&path[base_path.len()+1..])?;
+            consumer.call_mut((&path[base_path.len() + 1..],))?;
         }
     }
 
     return Ok(());
+}
+
+fn read_depfile(dependency_path: &str, file_path: &str) -> std::io::Result<Vec<String>> {
+    let text = fs::read_to_string(dependency_path)?;
+
+    let depfile = depfile::parse(&text)
+        .map_err(|e| std::io::Error::new(std::io::ErrorKind::InvalidData, format!("{}", e)))?;
+
+    return Ok(depfile
+        .find(file_path)
+        .unwrap()
+        .iter()
+        .map(|it| it.to_string())
+        .collect());
+}
+
+fn file_creation_time(path: &str) -> std::io::Result<SystemTime> {
+    let metadata = fs::metadata(path)?;
+
+    return metadata.modified();
+}
+
+pub fn file_up_to_date(dependency_path: &str, file_path: &str) -> io::Result<bool> {
+    if !fs::exists(dependency_path)? || !fs::exists(file_path)? {
+        return Ok(false);
+    }
+
+    let dependencies = read_depfile(dependency_path, file_path)?;
+
+    let base_time = file_creation_time(dependency_path)?;
+
+    for dependency in dependencies {
+        if !fs::exists(&dependency)? {
+            return Ok(false);
+        }
+
+        let time = file_creation_time(&dependency)?;
+
+        if time > base_time {
+            return Ok(false);
+        }
+    }
+
+    return Ok(true);
 }

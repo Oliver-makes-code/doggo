@@ -106,7 +106,7 @@ impl ClangCompilerBackend {
         return if target_is_windows(&extra_options.target) {
             "exe"
         } else {
-            ""
+            "out"
         };
     }
 
@@ -221,6 +221,10 @@ impl ClangCompilerBackend {
         }
 
         args.extend(static_libs.iter().map(|it| format!("-l{}", it)));
+
+        if !target_is_msvc(&extra_options.target) {
+            args.push("-Wl,--no-whole-archive".into());
+        }
 
         if dynamic_library {
             args.push("-shared".into());

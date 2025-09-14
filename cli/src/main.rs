@@ -1,9 +1,10 @@
-use std::{fs, path::PathBuf, process::exit};
+use std::{fmt::format, fs, path::PathBuf, process::exit};
 
 use clap::Parser;
 use doggo_core::{
     compiler_backend::{ClangCompilerBackend, ExtraCompileOptions, OptLevel},
-    get_default_target,
+    file_up_to_date, get_default_target,
+    manifest::PackageKind,
     project::{Package, Workspace},
 };
 
@@ -70,6 +71,33 @@ fn compiled_path(package_name: &str) -> PathBuf {
     return PathBuf::new().join(".doggo").join(package_name);
 }
 
+fn modify_filename(
+    package: &Package,
+    compiler: &ClangCompilerBackend,
+    extra_options: &ExtraCompileOptions,
+    base_name: &str,
+) -> String {
+    return match package.output {
+        PackageKind::Executable => format!(
+            "{}.{}",
+            base_name,
+            compiler.get_executable_suffix(extra_options)
+        ),
+        PackageKind::DynamicLibrary => format!(
+            "{}{}.{}",
+            compiler.get_library_prefix(extra_options),
+            base_name,
+            compiler.get_dynamic_suffix(extra_options)
+        ),
+        PackageKind::StaticLibrary => format!(
+            "{}{}.{}",
+            compiler.get_library_prefix(extra_options),
+            base_name,
+            compiler.get_static_suffix(extra_options)
+        ),
+    };
+}
+
 fn build_package(
     workspace: &Workspace,
     package: &Package,
@@ -80,15 +108,27 @@ fn build_package(
 
     fs::create_dir_all(&compiled)?;
 
+    let mut objects = vec![];
+
     package.visit(
         |path| {
+            let base_path = compiled
+                .join(path)
+                .with_extension(compiler.get_object_suffix(extra_options));
+            let output = base_path.to_str().unwrap();
+
+            objects.push(output.to_string());
+
+            let def_file = base_path.with_extension("d");
+            let dep_file = def_file.to_str().unwrap();
+
+            if file_up_to_date(dep_file, output)? {
+                return Ok(());
+            }
+
             compiler.compile_object(
                 &package.resolve_source(path),
-                compiled
-                    .join(path)
-                    .with_extension(compiler.get_object_suffix(extra_options))
-                    .to_str()
-                    .unwrap(),
+                output,
                 &[],
                 &[],
                 extra_options,
@@ -99,6 +139,29 @@ fn build_package(
         },
         &["c", "cpp", "cxx", "c++", "cc", "s", "asm"],
     )?;
+
+    let compiled = compiled.with_file_name(&modify_filename(
+        package,
+        compiler,
+        extra_options,
+        compiled.file_name().unwrap().to_str().unwrap(),
+    ));
+
+    let output = compiled.to_str().unwrap();
+
+    if let PackageKind::StaticLibrary = package.output {
+        compiler.archive_objects(&objects, output, extra_options)?;
+    } else {
+        compiler.link_objects(
+            &objects,
+            output,
+            &[],
+            &[],
+            &[],
+            package.output == PackageKind::DynamicLibrary,
+            extra_options,
+        )?;
+    }
 
     return Ok(());
 }
@@ -124,7 +187,7 @@ fn build(
         lto: current_member.lto,
         target: get_default_target().to_string(),
     };
-    
+
     build_package(workspace, &current_member, compiler, &extra_options)?;
 
     return Ok(());
