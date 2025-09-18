@@ -1,4 +1,4 @@
-use std::{fmt::format, fs, path::PathBuf, process::exit};
+use std::{fmt::format, fs, ops::Deref, path::PathBuf, process::exit};
 
 use clap::Parser;
 use doggo_core::{

@@ -10,7 +10,7 @@ use crate::{
 pub struct Package {
     pub name: StrReference,
     pub path: PathBuf,
-    pub dependencies: im::HashMap<StrReference, Dependency>,
+    pub dependencies: Box<[StrReference]>,
     pub output: PackageKind,
     pub lto: bool,
 }
@@ -39,26 +39,77 @@ pub enum WorkspaceError {
     CannotFindMember(String, PathBuf),
     #[error("Dependency named {0} in workspace ({1}) is invalid.")]
     InvalidDependency(String, PathBuf),
+    #[error("Workspace dependency named {0} not found in workspace ({1}).")]
+    DependencyNotInWorkspace(String, PathBuf),
+    #[error("Workspace dependency named {0} in package ({1}), but package is not in a workspace.")]
+    WorkspaceDeependencyNotInWorkspace(String, PathBuf),
+    #[error("Dependency named {0} in workspace ({1}) does not match dependency in package ({2}).")]
+    MismatchedDependency(String, PathBuf, PathBuf),
 }
 
 impl Package {
-    pub fn load(path: &PathBuf) -> Result<Option<Self>, WorkspaceError> {
+    pub fn load(
+        path: &PathBuf,
+        workspace_path: Option<&PathBuf>,
+        dependencies: &mut HashMap<StrReference, Dependency>,
+    ) -> Result<Option<Self>, WorkspaceError> {
         let Some(manifest) = Manifest::load(path)? else {
             return Ok(None);
         };
 
-        return Self::from_manifest(path, manifest);
+        return Self::from_manifest(path, manifest, workspace_path, dependencies);
     }
 
-    fn from_manifest(path: &PathBuf, manifest: Manifest) -> Result<Option<Self>, WorkspaceError> {
+    fn from_manifest(
+        path: &PathBuf,
+        manifest: Manifest,
+        workspace_path: Option<&PathBuf>,
+        dependencies: &mut HashMap<StrReference, Dependency>,
+    ) -> Result<Option<Self>, WorkspaceError> {
         let ManifestKind::Package(package) = manifest.kind else {
             return Err(WorkspaceError::ExpectedPackage(path.clone()));
         };
 
+        for (name, dep) in &manifest.dependencies {
+            if dep.workspace
+                && let Some(workspace_path) = workspace_path
+                && !dependencies.contains_key(name)
+            {
+                return Err(WorkspaceError::DependencyNotInWorkspace(
+                    name.get().to_string(),
+                    workspace_path.clone(),
+                ));
+            }
+
+            if dep.workspace && workspace_path.is_none() {
+                return Err(WorkspaceError::WorkspaceDeependencyNotInWorkspace(
+                    name.get().to_string(),
+                    path.clone(),
+                ));
+            } else if dep.workspace {
+                continue;
+            }
+
+            let real_path = path.join(&*dep.path.clone().unwrap());
+
+            if dependencies.contains_key(name) {
+                let workspace_dep = &dependencies[name];
+
+                if workspace_dep.path.clone().unwrap() != real_path {}
+            }
+
+            dependencies.insert(name.clone(), dep.clone());
+        }
+
         return Ok(Some(Self {
             name: package.name,
             path: path.canonicalize()?,
-            dependencies: manifest.dependencies.into(),
+            dependencies: manifest
+                .dependencies
+                .keys()
+                .map(Clone::clone)
+                .collect::<Vec<_>>()
+                .into_boxed_slice(),
             output: package.output,
             lto: package.lto,
         }));
@@ -119,7 +170,7 @@ impl From<ManifestError> for WorkspaceError {
 impl Workspace {
     fn from(
         manifest: WorkspaceManifest,
-        dependencies: HashMap<StrReference, Dependency>,
+        mut dependencies: HashMap<StrReference, Dependency>,
         path: PathBuf,
     ) -> Result<Self, WorkspaceError> {
         let mut packages = vec![];
@@ -129,7 +180,8 @@ impl Workspace {
 
             package_path = package_path.join(&*package.get());
 
-            let Some(package) = Package::load(&package_path)? else {
+            let Some(package) = Package::load(&package_path, Some(&path), &mut dependencies)?
+            else {
                 return Err(WorkspaceError::PackageNotFound(package_path));
             };
 
@@ -151,7 +203,30 @@ impl Workspace {
             if let Some(manifest) = manifest
                 && let ManifestKind::Workspace(ws) = manifest.kind
             {
-                return Ok(Some(Self::from(ws, manifest.dependencies, path)?));
+                let mut dependencies = HashMap::new();
+
+                for (name, dep) in manifest.dependencies {
+                    if dep.workspace || dep.path.is_none() {
+                        return Err(WorkspaceError::InvalidDependency(
+                            name.get().to_string(),
+                            path,
+                        ));
+                    }
+
+                    let dep_path = dep.path.unwrap();
+
+                    let dep_path = path.join(dep_path);
+
+                    dependencies.insert(
+                        name,
+                        Dependency {
+                            path: Some(dep_path),
+                            workspace: false,
+                        },
+                    );
+                }
+
+                return Ok(Some(Self::from(ws, dependencies, path)?));
             }
 
             if !path.pop() {
@@ -164,8 +239,9 @@ impl Workspace {
 
     fn find_first_package(mut path: PathBuf) -> Result<Option<Self>, WorkspaceError> {
         loop {
-            if let Some(package) = Package::load(&path)? {
-                for dependency in &package.dependencies {
+            let mut dependencies = HashMap::new();
+            if let Some(package) = Package::load(&path, None, &mut dependencies)? {
+                for dependency in &dependencies {
                     if dependency.1.workspace {
                         return Err(WorkspaceError::InvalidDependency(
                             dependency.0.get().to_string(),
@@ -176,7 +252,7 @@ impl Workspace {
 
                 return Ok(Some(Self {
                     path: path.canonicalize()?,
-                    dependencies: package.dependencies.clone(),
+                    dependencies: dependencies.into(),
                     members: [package].into(),
                     current_member: Some(0),
                 }));
