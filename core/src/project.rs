@@ -42,7 +42,7 @@ pub enum WorkspaceError {
     #[error("Workspace dependency named {0} not found in workspace ({1}).")]
     DependencyNotInWorkspace(String, PathBuf),
     #[error("Workspace dependency named {0} in package ({1}), but package is not in a workspace.")]
-    WorkspaceDeependencyNotInWorkspace(String, PathBuf),
+    WorkspaceDependencyNotInWorkspace(String, PathBuf),
     #[error("Dependency named {0} in workspace ({1}) does not match dependency in package ({2}).")]
     MismatchedDependency(String, PathBuf, PathBuf),
 }
@@ -82,7 +82,7 @@ impl Package {
             }
 
             if dep.workspace && workspace_path.is_none() {
-                return Err(WorkspaceError::WorkspaceDeependencyNotInWorkspace(
+                return Err(WorkspaceError::WorkspaceDependencyNotInWorkspace(
                     name.get().to_string(),
                     path.clone(),
                 ));
@@ -95,10 +95,16 @@ impl Package {
             if dependencies.contains_key(name) {
                 let workspace_dep = &dependencies[name];
 
-                if workspace_dep.path.clone().unwrap() != real_path {}
+                if workspace_dep.path.clone().unwrap() != real_path {
+                    return Err(WorkspaceError::MismatchedDependency(
+                        name.get().to_string(),
+                        workspace_path.unwrap().clone(),
+                        path.clone(),
+                    ));
+                }
             }
 
-            dependencies.insert(name.clone(), dep.clone());
+            dependencies.insert(name.clone(), Dependency { path: Some(real_path), workspace: false });
         }
 
         return Ok(Some(Self {
